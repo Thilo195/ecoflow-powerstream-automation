@@ -1,18 +1,18 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import { PID } from './src/logic/pid_controller.js';
+import { SerialDataSource } from './src/hardware/serial_data_source.js';
+import { EcoflowMQTT } from './src/services/ecoflow_mqtt.js';
+import { EcoflowBLE } from './src/services/ecoflow_ble.js';
+import { startServer } from './src/web/webserver.js';
+import { logToInflux } from './src/db/influx_logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-import { PID } from './src/logic/pid_controller.js';
-import { SerialDataSource } from './src/hardware/serial_data_source.js';
-import { EcoflowMQTT } from './src/services/ecoflow_mqtt.js';
-import { EcoflowBLE } from './src/services/ecoflow_ble.js';
 
-import { startServer } from './src/web/webserver.js';
-import { logToInflux } from './src/db/influx_logger.js';
 
 const TARGET_SETPOINT = -50;
 
