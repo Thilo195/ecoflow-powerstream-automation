@@ -1,0 +1,82 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+import { PID } from './src/logic/pid_controller.js';
+import { SerialDataSource } from './src/hardware/serial_data_source.js';
+import { EcoflowMQTT } from './src/services/ecoflow_mqtt.js';
+import { startServer } from './src/web/webserver.js';
+import { logToInflux } from './src/db/influx_logger.js';
+
+const pidController = new PID({
+    kp: 0.4,
+    ki: 0.3,
+    kd: 0.05,
+    outputMin: 0,
+    outputMax: 800,
+});
+
+const ecoflow = new EcoflowMQTT();
+await ecoflow.connect();
+const dataSource = new SerialDataSource();
+
+let latestData = {
+    smartMeter: {},
+    ecoflowTargetWatts: 0,
+    ecoflow: {
+        battery_soc: 0,
+        pv_power_w: 0
+    }
+};
+
+async function updateEcoFlowData() {
+    try {
+        if (ecoflow && ecoflow.isConnected) {
+            latestData.ecoflow.battery_soc = ecoflow.batterySoc || 0;
+            latestData.ecoflow.pv_power_w = ecoflow.pvPower || 0;
+        }
+    } catch (error) {
+        console.error(`Time: ${new Date().toISOString()} | [EcoFlow] Fehler beim Telemetrie-Update:`, error.message);
+    }
+}
+
+
+updateEcoFlowData();
+setInterval(updateEcoFlowData, 15000);
+
+dataSource.initialize(metric => {
+    if (metric) {
+        latestData.smartMeter = metric;
+        
+        if (metric.current_power_w !== undefined) {
+            try {
+                const setpoint = -20;
+                const actualValue = metric.current_power_w;
+
+                const controlOutput = pidController.update(setpoint, -actualValue);
+                
+                latestData.ecoflowTargetWatts = controlOutput;
+                
+                if (isNaN(controlOutput)) {
+                    console.log(`Setpoint: ${setpoint} | Actual: ${actualValue}`);
+                }
+                
+                console.log(`Time: ${new Date().toISOString()} | Grid: ${actualValue.toFixed(2)}W --> Ecoflow Target: ${controlOutput.toFixed(2)}W`);
+
+                ecoflow.setWatts(controlOutput);
+
+                logToInflux(metric, controlOutput, latestData.ecoflow);
+            }
+            catch (ex) {
+                console.error(`Time: ${new Date().toISOString()} | Error:`, ex);
+            }
+        }
+    }
+});
+
+const port = process.env.PORT || 8080;
+startServer(port, () => latestData);

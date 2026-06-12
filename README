@@ -1,0 +1,24 @@
+# EcoFlow PowerStream & Smart Meter Automation
+
+An intelligent Node.js control system designed for dynamic zero-export grid compliance (Nulleinspeisung). The script reads live consumption data from a smart meter, calculates the ideal feed-in power via a PID controller, and adjusts the EcoFlow PowerStream inverter in real-time using MQTT. Additionally, all energy metrics are stored in an InfluxDB instance and visualized via Grafana.
+
+## 🚀 Features
+
+- **Dynamic Zero-Export Control:** Real-time adjustment of PowerStream output based on actual household demand.
+- **EcoFlow Integration:** Robust MQTT connection to the EcoFlow cloud to monitor solar generation (PV) and battery state of charge (SoC).
+- **Energy Monitoring:** Lazy-initialized InfluxDB client for seamless data logging without boot-up race conditions.
+- **Grafana Dashboards:** Ready-to-use Flux queries to visualize household consumption, solar generation, and battery status.
+- **24/7 Stability:** Optimized for continuous operation on a Raspberry Pi using the PM2 process manager.
+
+## 📋 Prerequisites
+
+- **Node.js** (v18 or higher)
+- **PM2** (for background process management)
+- **InfluxDB 2.x** & **Grafana**
+
+## 🔧 Installation & Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/Thilo195/ecoflow-powerstream-automation.git](https://github.com/Thilo195/ecoflow-powerstream-automation.git)
+   cd ecoflow-powerstream-automation
