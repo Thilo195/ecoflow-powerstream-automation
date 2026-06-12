@@ -23,6 +23,4 @@ An intelligent Node.js control system designed for dynamic zero-export grid comp
    git clone [https://github.com/Thilo195/ecoflow-powerstream-automation.git](https://github.com/Thilo195/ecoflow-powerstream-automation.git)
    cd ecoflow-powerstream-automation
 
-![Dashboard](./assets/ecoflow_powerstream_dashboard.png)
-
 <img src="./assets/ecoflow_powerstream_dashboard.png" alt="Dashboard Live-Ansicht" width="100%">
