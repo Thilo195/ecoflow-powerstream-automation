@@ -29,7 +29,7 @@ async function readPowerstream() {
         return result
 
     } catch (error) {
-        console.error('Fehler bei der Anfrage:', error);
+        console.error('Error:', error);
     }
 }
 

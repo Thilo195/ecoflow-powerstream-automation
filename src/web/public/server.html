@@ -149,7 +149,6 @@
         <div class="metric-main">
             <label>Current Grid Power</label>
             <div id="current-power" class="value loading">Loading...</div>
-            <div style="font-size: 12px; color: #777; margin-top: 5px;">Target: 20 W</div>
         </div>
 
         <div class="metric-main">
@@ -201,7 +200,6 @@
     const dataUrl = '/data'; 
     const MAX_DATA_POINTS = 900; 
 
-    // graph 1 : counter
     const ctx1 = document.getElementById('historyChart').getContext('2d');
     const historyChart = new Chart(ctx1, {
         type: 'line',
@@ -222,7 +220,7 @@
                     }
                 },
                 {
-                    label: 'Target (20W)',
+                    label: 'Setpoint (W)',
                     data: [], 
                     borderColor: '#f1c40f', 
                     borderWidth: 1,
@@ -243,7 +241,6 @@
         }
     });
 
-    // graph 2 : batterie und pv
     const ctx2 = document.getElementById('ecoChart').getContext('2d');
     const ecoChart = new Chart(ctx2, {
         type: 'line',
@@ -300,7 +297,6 @@
         }
     });
 
-    // data fetch loop
     async function updateDashboard() {
         try {
             const response = await fetch(dataUrl);
@@ -311,37 +307,35 @@
 
             const meter = rawData.smartMeter || {};
             const eco = rawData.ecoflow || {};
+            const targetWatts = rawData.ecoflowTargetWatts || 0;
+            const targetSetpoint = (rawData.targetSetpoint || 0) * -1;
 
             document.getElementById('serial').innerText = meter.serial_number || 'Unbekannt';
             document.getElementById('timestamp').innerText = new Date().toLocaleTimeString();
 
-            
             const currentPowerEl = document.getElementById('current-power');
             const power = meter.current_power_w || 0;
             currentPowerEl.innerText = power.toFixed(1) + ' W';
             currentPowerEl.className = 'value';
+            
             if (power < 0) {
                 currentPowerEl.classList.add('delivery');
             } else {
                 currentPowerEl.classList.add('consumption');
             }
 
-            // update ecoflow values
             document.getElementById('pv-power').innerText = (eco.pv_power_w || 0) + ' W';
             document.getElementById('battery-soc').innerText = (eco.battery_soc || 0) + ' %';
 
-            // phases
             document.getElementById('power-l1').innerText = (meter.power_L1_w || 0).toFixed(1) + ' W';
             document.getElementById('power-l2').innerText = (meter.power_L2_w || 0).toFixed(1) + ' W';
             document.getElementById('power-l3').innerText = (meter.power_L3_w || 0).toFixed(1) + ' W';
             document.getElementById('total-consumption').innerText = (meter.total_consumption_kwh || 0).toFixed(2) + ' kWh';
 
-            // graph 1 
             historyChart.data.labels.push(nowStr);
             historyChart.data.datasets[0].data.push(power); 
-            historyChart.data.datasets[1].data.push(20);
+            historyChart.data.datasets[1].data.push(targetSetpoint);
 
-            // graph 2
             ecoChart.data.labels.push(nowStr);
             ecoChart.data.datasets[0].data.push(eco.pv_power_w || 0); 
             ecoChart.data.datasets[1].data.push(eco.battery_soc || 0);
@@ -360,8 +354,7 @@
             ecoChart.update('none');
 
         } catch (error) {
-            console.error('Fehler beim Abrufen der Dashboard-Daten:', error);
-            document.getElementById('current-power').innerText = 'Fehler';
+            document.getElementById('current-power').innerText = 'Error';
             document.getElementById('current-power').className = 'value loading';
         }
     }

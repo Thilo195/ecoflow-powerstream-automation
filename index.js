@@ -9,8 +9,12 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 import { PID } from './src/logic/pid_controller.js';
 import { SerialDataSource } from './src/hardware/serial_data_source.js';
 import { EcoflowMQTT } from './src/services/ecoflow_mqtt.js';
+import { EcoflowBLE } from './src/services/ecoflow_ble.js';
+
 import { startServer } from './src/web/webserver.js';
 import { logToInflux } from './src/db/influx_logger.js';
+
+const TARGET_SETPOINT = -50;
 
 const pidController = new PID({
     kp: 0.4,
@@ -20,59 +24,49 @@ const pidController = new PID({
     outputMax: 800,
 });
 
-const ecoflow = new EcoflowMQTT();
-await ecoflow.connect();
+const ecoflowMQTT = new EcoflowMQTT();
+const ecoflowBLE = new EcoflowBLE();
+
+await ecoflowMQTT.connect();
+await ecoflowBLE.connect();
+
 const dataSource = new SerialDataSource();
 
 let latestData = {
     smartMeter: {},
     ecoflowTargetWatts: 0,
+    targetSetpoint: TARGET_SETPOINT,
     ecoflow: {
         battery_soc: 0,
         pv_power_w: 0
     }
 };
 
-async function updateEcoFlowData() {
-    try {
-        if (ecoflow && ecoflow.isConnected) {
-            latestData.ecoflow.battery_soc = ecoflow.batterySoc || 0;
-            latestData.ecoflow.pv_power_w = ecoflow.pvPower || 0;
-        }
-    } catch (error) {
-        console.error(`Time: ${new Date().toISOString()} | [EcoFlow] Fehler beim Telemetrie-Update:`, error.message);
-    }
-}
-
-
-updateEcoFlowData();
-setInterval(updateEcoFlowData, 15000);
-
 dataSource.initialize(metric => {
     if (metric) {
         latestData.smartMeter = metric;
         
+        if (ecoflowMQTT && ecoflowMQTT.isConnected) {
+            latestData.ecoflow.battery_soc = ecoflowMQTT.batterySoc || 0;
+            latestData.ecoflow.pv_power_w = ecoflowMQTT.pvPower || 0;
+        }
+        
         if (metric.current_power_w !== undefined) {
             try {
-                const setpoint = -20;
                 const actualValue = metric.current_power_w;
 
-                const controlOutput = pidController.update(setpoint, -actualValue);
+                const controlOutput = pidController.update(TARGET_SETPOINT, -actualValue);
                 
                 latestData.ecoflowTargetWatts = controlOutput;
-                
-                if (isNaN(controlOutput)) {
-                    console.log(`Setpoint: ${setpoint} | Actual: ${actualValue}`);
-                }
-                
                 console.log(`Time: ${new Date().toISOString()} | Grid: ${actualValue.toFixed(2)}W --> Ecoflow Target: ${controlOutput.toFixed(2)}W`);
 
-                ecoflow.setWatts(controlOutput);
+                if (ecoflowBLE && ecoflowBLE.isConnected) {
+                    ecoflowBLE.setWatts(controlOutput);
+                }
 
                 logToInflux(metric, controlOutput, latestData.ecoflow);
             }
             catch (ex) {
-                console.error(`Time: ${new Date().toISOString()} | Error:`, ex);
             }
         }
     }
