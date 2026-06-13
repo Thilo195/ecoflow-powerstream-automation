@@ -1,6 +1,11 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 import { PID } from './src/logic/pid_controller.js';
 import { SerialDataSource } from './src/hardware/serial_data_source.js';
 import { EcoflowMQTT } from './src/services/ecoflow_mqtt.js';
@@ -8,13 +13,7 @@ import { EcoflowBLE } from './src/services/ecoflow_ble.js';
 import { startServer } from './src/web/webserver.js';
 import { logToInflux } from './src/db/influx_logger.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '.env') });
-
-
-
-const TARGET_SETPOINT = -50;
+const TARGET_SETPOINT = -20;
 
 const pidController = new PID({
     kp: 0.4,
@@ -25,10 +24,8 @@ const pidController = new PID({
 });
 
 const ecoflowMQTT = new EcoflowMQTT();
-const ecoflowBLE = new EcoflowBLE();
-
 await ecoflowMQTT.connect();
-await ecoflowBLE.connect();
+
 
 const dataSource = new SerialDataSource();
 
@@ -60,13 +57,15 @@ dataSource.initialize(metric => {
                 latestData.ecoflowTargetWatts = controlOutput;
                 console.log(`Time: ${new Date().toISOString()} | Grid: ${actualValue.toFixed(2)}W --> Ecoflow Target: ${controlOutput.toFixed(2)}W`);
 
-                if (ecoflowBLE && ecoflowBLE.isConnected) {
-                    ecoflowBLE.setWatts(controlOutput);
+                
+                if (ecoflowMQTT && ecoflowMQTT.isConnected) {
+                    ecoflowMQTT.setWatts(controlOutput);
                 }
 
                 logToInflux(metric, controlOutput, latestData.ecoflow);
             }
             catch (ex) {
+                console.error(ex);
             }
         }
     }

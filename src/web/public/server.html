@@ -220,7 +220,8 @@
                     }
                 },
                 {
-                    label: 'Setpoint (W)',
+                    // Änderung 1: Startwert als Platzhalter setzen
+                    label: 'Target: -- W', 
                     data: [], 
                     borderColor: '#f1c40f', 
                     borderWidth: 1,
@@ -332,6 +333,8 @@
             document.getElementById('power-l3').innerText = (meter.power_L3_w || 0).toFixed(1) + ' W';
             document.getElementById('total-consumption').innerText = (meter.total_consumption_kwh || 0).toFixed(2) + ' kWh';
 
+        
+            historyChart.data.datasets[1].label = `Target: ${Math.round(targetSetpoint)} W`;
             historyChart.data.labels.push(nowStr);
             historyChart.data.datasets[0].data.push(power); 
             historyChart.data.datasets[1].data.push(targetSetpoint);
@@ -362,6 +365,5 @@
     updateDashboard();
     setInterval(updateDashboard, 2000);
 </script>
-
 </body>
 </html>
